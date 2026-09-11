@@ -1,0 +1,77 @@
+name: libheif native Windows ARM64
+on:
+  push:
+    branches: [codex/libheif-arm64-probe]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  probe:
+    if: github.repository == 'ClayWarren/libheif-feedstock'
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [win_arm64_license_familygpl, win_arm64_license_familylgpl]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Retrieve verified native prerequisites
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Path C:/libheif-prereqs/win-arm64 -Force | Out-Null
+          gh run download 34643488984 --repo ClayWarren/rav1e-feedstock --name rav1e-arm64-package --dir "$env:RUNNER_TEMP/rav1e"
+          if ($LASTEXITCODE -ne 0) { throw "rav1e download failed" }
+          $pkg = @(Get-ChildItem "$env:RUNNER_TEMP/rav1e" -Recurse -Filter 'rav1e-0.8.1-hd64c7fa_1.conda')
+          if ($pkg.Count -ne 1) { throw 'Expected one exact rav1e-0.8.1-hd64c7fa_1.conda' }
+          if ((Get-FileHash $pkg[0].FullName -Algorithm SHA256).Hash.ToLower() -ne 'e5419a30aa85825527b4685a4be8e17f07de9a7d07ee8d9f7c51c683123e85ac') { throw 'Checksum mismatch for rav1e-0.8.1-hd64c7fa_1.conda' }
+          Copy-Item $pkg[0].FullName C:/libheif-prereqs/win-arm64/
+          gh run download 34644954395 --repo ClayWarren/libavif-feedstock --name libavif-arm64-package --dir "$env:RUNNER_TEMP/libavif"
+          if ($LASTEXITCODE -ne 0) { throw "libavif download failed" }
+          $pkg = @(Get-ChildItem "$env:RUNNER_TEMP/libavif" -Recurse -Filter 'libavif16-1.4.2-h76ed88f_5.conda')
+          if ($pkg.Count -ne 1) { throw 'Expected one exact libavif16-1.4.2-h76ed88f_5.conda' }
+          if ((Get-FileHash $pkg[0].FullName -Algorithm SHA256).Hash.ToLower() -ne 'ee1d63769401276319e3734a4a4d573f08cee4c40ed239a0191856453bba98b1') { throw 'Checksum mismatch for libavif16-1.4.2-h76ed88f_5.conda' }
+          Copy-Item $pkg[0].FullName C:/libheif-prereqs/win-arm64/
+          $pkg = @(Get-ChildItem "$env:RUNNER_TEMP/libavif" -Recurse -Filter '_libavif_api-1.4.2-hf6e0785_5.conda')
+          if ($pkg.Count -ne 1) { throw 'Expected one exact _libavif_api-1.4.2-hf6e0785_5.conda' }
+          if ((Get-FileHash $pkg[0].FullName -Algorithm SHA256).Hash.ToLower() -ne '6367c3fe88f696270713e309d87cfbcc9dc79202fb4af2b152ecb117ee7fea33') { throw 'Checksum mismatch for _libavif_api-1.4.2-hf6e0785_5.conda' }
+          Copy-Item $pkg[0].FullName C:/libheif-prereqs/win-arm64/
+          $pkg = @(Get-ChildItem "$env:RUNNER_TEMP/libavif" -Recurse -Filter 'libavif-1.4.2-h45c5bf6_5.conda')
+          if ($pkg.Count -ne 1) { throw 'Expected one exact libavif-1.4.2-h45c5bf6_5.conda' }
+          if ((Get-FileHash $pkg[0].FullName -Algorithm SHA256).Hash.ToLower() -ne '324653c92ad4fe104bcc28531024ba2046f01cf018601b4ae76cff73cd8e9c00') { throw 'Checksum mismatch for libavif-1.4.2-h45c5bf6_5.conda' }
+          Copy-Item $pkg[0].FullName C:/libheif-prereqs/win-arm64/
+          gh run download 34642901655 --repo ClayWarren/libde265-feedstock --name libde265-arm64-package --dir "$env:RUNNER_TEMP/libde265"
+          if ($LASTEXITCODE -ne 0) { throw "libde265 download failed" }
+          $pkg = @(Get-ChildItem "$env:RUNNER_TEMP/libde265" -Recurse -Filter 'libde265-1.1.1-h11ae69d_1.conda')
+          if ($pkg.Count -ne 1) { throw 'Expected one exact libde265-1.1.1-h11ae69d_1.conda' }
+          if ((Get-FileHash $pkg[0].FullName -Algorithm SHA256).Hash.ToLower() -ne '2c000ccd19bdf297d416966fb0693a107e482f23fbe66bf0346b9daf738d4705') { throw 'Checksum mismatch for libde265-1.1.1-h11ae69d_1.conda' }
+          Copy-Item $pkg[0].FullName C:/libheif-prereqs/win-arm64/
+      - name: Build and test libheif
+        shell: cmd
+        env:
+          BUILD_PLATFORM: win-arm64
+          CI: github_actions
+          CONDA_BLD_PATH: C:\bld
+          CONFIG: ${{ matrix.config }}
+          MINIFORGE_HOME: C:\Miniforge
+          PYTHONUNBUFFERED: '1'
+          UPLOAD_PACKAGES: 'False'
+          CONDA_CHANNEL_PRIORITY: strict
+          EXTRA_CB_OPTIONS: '-m .github/probe-channels.yaml --channel-priority strict'
+          RATTLER_BUILD_COLOR: always
+          RATTLER_BUILD_ENABLE_GITHUB_INTEGRATION: 'true'
+        run: |
+          set "flow_run_id=github_%GITHUB_RUN_ID%"
+          set "remote_url=https://github.com/%GITHUB_REPOSITORY%"
+          set "sha=%GITHUB_SHA%"
+          call ".scripts\run_win_build.bat"
+      - name: Preserve libheif package
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: libheif-arm64-package-${{ matrix.config }}
+          path: C:\bld\win-arm64\*.conda
+          if-no-files-found: warn
+          retention-days: 7
