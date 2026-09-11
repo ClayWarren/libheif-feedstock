@@ -3,7 +3,7 @@ schema_version: 1
 context:
   version: "1.23.4"
   # Reset this to 0 for each upstream release; increment it for recipe rebuilds.
-  build_number: 0
+  build_number: 1
 
 package:
   name: libheif
@@ -67,9 +67,14 @@ tests:
           - ./test_build/test_libheif
       - if: win
         then:
-          - cmake %CMAKE_ARGS% -G Ninja -S test -B test_build
+          - cmake %CMAKE_ARGS% -G Ninja -S test -B test_build -DCMAKE_BUILD_TYPE=Release
           - cmake --build test_build
           - test_build\test_libheif.exe
+          - if: arm64
+            then:
+              - test_build\test_libheif.exe ${{ license_family }}
+              - dumpbin /headers "%LIBRARY_BIN%\heif.dll" | findstr /I /C:"AA64 machine (ARM64)"
+              - dumpbin /headers test_build\test_libheif.exe | findstr /I /C:"AA64 machine (ARM64)"
 
 about:
   homepage: https://github.com/strukturag/libheif
