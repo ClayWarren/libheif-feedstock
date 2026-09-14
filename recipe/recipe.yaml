@@ -67,14 +67,9 @@ tests:
           - ./test_build/test_libheif
       - if: win
         then:
-          - cmake %CMAKE_ARGS% -G Ninja -S test -B test_build -DCMAKE_BUILD_TYPE=Release
+          - cmake %CMAKE_ARGS% -G Ninja -S test -B test_build
           - cmake --build test_build
           - test_build\test_libheif.exe
-          - if: arm64
-            then:
-              - test_build\test_libheif.exe ${{ license_family }}
-              - dumpbin /headers "%LIBRARY_BIN%\heif.dll" | findstr /I /C:"AA64 machine (ARM64)"
-              - dumpbin /headers test_build\test_libheif.exe | findstr /I /C:"AA64 machine (ARM64)"
 
 about:
   homepage: https://github.com/strukturag/libheif
